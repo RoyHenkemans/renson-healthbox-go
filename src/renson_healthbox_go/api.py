@@ -88,7 +88,7 @@ class HealthboxGoApi:
         self._session = session
 
     async def _request(
-        self, method: str, path: str, payload: dict[str, Any] | None = None
+        self, method: str, path: str, payload: Any | None = None
     ) -> Any:
         try:
             async with asyncio.timeout(REQUEST_TIMEOUT):
@@ -120,13 +120,13 @@ class HealthboxGoApi:
         except (TimeoutError, ClientError, OSError) as err:
             raise HealthboxGoConnectionError(str(err)) from err
 
-    async def get(self, path: str) -> dict[str, Any]:
+    async def get(self, path: str) -> dict[str, Any] | list[Any]:
         result = await self._request("GET", path)
-        if not isinstance(result, dict):
-            raise HealthboxGoInvalidResponse(f"GET {path} returned no object")
+        if not isinstance(result, (dict, list)):
+            raise HealthboxGoInvalidResponse(f"GET {path} returned no JSON object or array")
         return result
 
-    async def put(self, path: str, payload: dict[str, Any]) -> None:
+    async def put(self, path: str, payload: Any) -> None:
         await self._request("PUT", path, payload)
 
     async def async_get_info(self) -> HealthboxGoInfo:
@@ -162,7 +162,9 @@ class HealthboxGoApi:
         data: dict[str, Any] = {}
         required_ok = False
         for key, result in zip(paths, results, strict=True):
-            if isinstance(result, dict):
+            if isinstance(result, dict) or (
+                key == "sensor_presets" and isinstance(result, list)
+            ):
                 data[key] = result
                 if key in ("constellation", "room"):
                     required_ok = True
@@ -211,7 +213,7 @@ class HealthboxGoApi:
     async def set_rh_sensitivity(self, sensitivity: int) -> None:
         await self.put(
             "/v1/decision/room/sensor_presets",
-            {"sensor_type": "rh", "sensitivity": sensitivity},
+            [{"sensor_type": "rh", "sensitivity": sensitivity}],
         )
 
     async def set_breeze(

@@ -15,9 +15,13 @@ async def test_write_mappings() -> None:
         "/v1/decision/room/demand",
         {"CO2": {"static": {"minimum": 700.0, "maximum": 950.0}}},
     )
+    await api.set_rh_sensitivity(5)
+    api.put.assert_awaited_with(
+        "/v1/decision/room/sensor_presets",
+        [{"sensor_type": "rh", "sensitivity": 5}],
+    )
 
 
 def test_parameter_value() -> None:
     data = {"sensor": {"3": {"parameter": {"concentration": {"value": 567}}}}}
     assert parameter_value(data, "concentration") == 567
-
